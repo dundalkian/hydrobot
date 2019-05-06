@@ -2,8 +2,6 @@ import json
 import os
 import time
 import datetime
-import threading
-from collections import Counter
 from configparser import ConfigParser
 import re
 
@@ -79,7 +77,6 @@ hydro decrement - decrement by one bottle amount
         elif messageText == client.fetchThreadInfo(thread_id)[thread_id].emoji:
             homie_increment(self, thread_id, thread_type, author_id)
         elif re.search("(?i)yeet", messageText) and author_id == '100002237228114':
-            print("Hello")
             homie_zero(self, thread_id, thread_type)
         elif re.search("(?i)all", messageText):
             all_data = data.get_drinks()
@@ -104,9 +101,8 @@ def send_homie_stats(self, thread_id, thread_type, verbose=False):
     stats.sort(key=lambda x: ((x[2]*x[3])/1000), reverse=True)
     stats = filter(lambda x: x[1] != 'AssumeZero Bot', stats)
     
-    string = "Hydration stats since last reset as follows:"
+    string = "Hydration stats since midnight as follows:"
     for s in stats:
-        print(s[1])
         if verbose:
             string = string + "\n - {} drank {}L ({} bottles, each {}mL in size.)".format(s[1], (s[2]*s[3])/1000 ,s[3], s[2] )
         else:

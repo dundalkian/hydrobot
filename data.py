@@ -2,8 +2,9 @@ from urllib import parse
 from configparser import ConfigParser
 import psycopg2
 import os
+import sys
 
-def config(filename='config.ini', section='postgresql'):
+def config(filename=sys.path[0]+'/config.ini', section='postgresql'):
     # create a parser
     parser = ConfigParser()
     # read config file
@@ -104,8 +105,8 @@ def execute_statement(sql, args=False):
 
 
 def insert_drink(homie_fb_id):
-    new_homie_sql = """INSERT INTO drink_stats (homie_fb_id) VALUES(%s);"""
-    execute_statement(delete_drink_sql, (homie_fb_id,))
+    add_drink_sql = """INSERT INTO drink_stats (homie_fb_id) VALUES(%s);"""
+    execute_statement(add_drink_sql, (homie_fb_id,))
 
 def zero_homie():
     new_homie_sql = "UPDATE homie_stats SET num_drinks = 0;"
