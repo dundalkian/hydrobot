@@ -11,7 +11,7 @@ from fbchat.models import Message, ThreadType
 import data
 
 def config(filename='config.ini', section='facebook credentials'):
-    # create a parser
+    # create a parser 
     parser = ConfigParser()
     # read config file
     parser.read(filename)
