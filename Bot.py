@@ -83,7 +83,8 @@ hydro decrement - decrement by one bottle amount
             times = [i[2] for i in all_data]
 
 
-
+def send_message(self, txt, thread_id, thread_type):
+    self.send(Message(text=txt), thread_id=thread_id, thread_type=thread_type)
 
 def homie_zero(self, thread_id, thread_type):
     data.zero_homie()
@@ -134,6 +135,7 @@ def startupClient(email, password):
 
 
 ### Reving up the engines ###
-creds = config()
-client = startupClient(creds['email'], creds['password'])
-client.listen()
+if __name__ == "__main__":
+    creds = config()
+    client = startupClient(creds['email'], creds['password'])
+    client.listen()
