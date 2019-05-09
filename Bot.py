@@ -103,11 +103,22 @@ def send_homie_stats(self, thread_id, thread_type, verbose=False):
     stats = filter(lambda x: x[1] != 'AssumeZero Bot', stats)
     
     string = "Hydration stats since midnight as follows:"
+    king_quota = 1
     for s in stats:
+        liters = (s[2]*s[3])/1000
         if verbose:
-            string = string + "\n - {} drank {}L ({} bottles, each {}mL in size.)".format(s[1], (s[2]*s[3])/1000 ,s[3], s[2] )
+            string = string + "\n - {} drank {}L ({} bottles, each {}mL in size.)".format(s[1], liters ,s[3], s[2] )
         else:
-            string = string + "\n - {}: {}L".format(s[1], (s[2]*s[3])/1000)
+            if liters < 2.0:
+                string = string + "\n 🥵 "
+            elif king_quota > 0:
+                string = string + "\n 👑 "
+                king_quota = 0
+            else:
+                string = string + "\n 👍 "
+            string = string + "{}: {}L".format(s[1], liters)
+        
+
     self.send(Message(text = string), thread_id = thread_id, thread_type=thread_type)
 
 def update_homie(self, thread_id, thread_type, fbid, name, size):
