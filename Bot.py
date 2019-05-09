@@ -4,13 +4,14 @@ import time
 import datetime
 from configparser import ConfigParser
 import re
+import sys
 
 from fbchat import Client, log
 from fbchat.models import Message, ThreadType
 
 import data
 
-def config(filename='config.ini', section='facebook credentials'):
+def config(filename=sys.path[0] + '/config.ini', section='facebook credentials'):
     # create a parser 
     parser = ConfigParser()
     # read config file
