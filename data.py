@@ -25,62 +25,115 @@ def config(filename=sys.path[0]+'/config.ini', section='postgresql'):
         raise Exception('Section {0} not found in the {1} file'.format(section, filename))
     return db
 
-def connect():
-    """ Connect to the PostgreSQL database server """
-    conn = None
-    try:
-        # read connection parameters
-        params = config()
- 
-        # connect to the PostgreSQL server
-        print('Connecting to the PostgreSQL database...')
-        conn = psycopg2.connect(**params)
- 
-        # create a cursor
-        cur = conn.cursor()
-        
- # execute a statement
-        print('PostgreSQL database version:')
-        cur.execute('SELECT version()')
- 
-        # display the PostgreSQL database server version
-        db_version = cur.fetchone()
-        print(db_version)
-       
-     # close the communication with the PostgreSQL
-        cur.close()
-    except (Exception, psycopg2.DatabaseError) as error:
-        print(error)
-    finally:
-        if conn is not None:
-            conn.close()
-            print('Database connection closed.')
 
-# (For reference and if I blow up prod db :yikes:)
-def insert_tables():
-    command1 = """
-            CREATE TABLE drink_stats (
+def insert_bottle_table():
+    bottle_table_sql = """
+                CREATE TABLE bottles (
+                    bottle_id SERIAL PRIMARY KEY,
+                    homie_fb_id BIGINT,
+                    bottle_name VARCHAR(255) NOT NULL,
+                    bottle_size INT,
+                    num_drinks INT,
+                    UNIQUE (homie_fb_id, bottle_name)
+                    )"""
+    execute_statement(bottle_table_sql)
+
+def insert_homie_table():
+    homie_table_sql = """
+            CREATE TABLE homies (
+            homie_fb_id BIGINT PRIMARY KEY,
+            homie_name VARCHAR(255) NOT NULL,
+            curr_bottle_id INT
+            )"""
+    execute_statement(homie_table_sql)
+        
+
+def insert_drink_table():
+    drink_table_sql = """
+            CREATE TABLE drinks (
                 index SERIAL PRIMARY KEY,
                 homie_fb_id BIGINT,
-                drink_time TIMESTAMP DEFAULT NOW()
+                drink_time TIMESTAMP DEFAULT NOW(),
+                bottle_id INT
             )"""
-    command2 = """
-            CREATE TABLE homie_stats (
-                homie_fb_id BIGINT PRIMARY KEY,
-                homie_name VARCHAR(255) NOT NULL,
-                homie_drink_size INT,
-                num_drinks INT
-            )"""
-    execute_statement(command1)
-    execute_statement(command2)
-
+    
+    execute_statement(drink_table_sql)
 
 def delete_last_drink(homie_fb_id):
-    delete_drink_sql = """DELETE FROM drink_stats 
-    WHERE index=(SELECT MAX(index) FROM drink_stats WHERE homie_fb_id = %s)"""
+    drink_entry = execute_statement("SELECT * FROM drinks WHERE index=(SELECT MAX(index) FROM drinks WHERE homie_fb_id = %s);", args=(homie_fb_id,), ret=True)
+    bottle_id = drink_entry[0][3]
+    delete_drink_sql = """DELETE FROM drinks
+    WHERE index=(SELECT MAX(index) FROM drinks WHERE homie_fb_id = %s)"""
     execute_statement(delete_drink_sql, (homie_fb_id,))
+    execute_statement("UPDATE bottles set num_drinks = num_drinks-1 WHERE homie_fb_id = %s AND bottle_id = %s;", args=(homie_fb_id, bottle_id))
 
-def execute_statement(sql, args=False):
+def insert_drink(homie_fb_id):
+    # Fetches current bottle selected by user
+    homie_entry = execute_statement("SELECT * FROM homies WHERE homie_fb_id = %s;", args=(homie_fb_id,), ret=True)
+    bottle_id = homie_entry[0][2]
+    # Adds a drink event with the currently selected bottle id
+    add_drink_sql = """INSERT INTO drinks (homie_fb_id, bottle_id) VALUES(%s, %s);"""
+    execute_statement(add_drink_sql, (homie_fb_id, bottle_id))
+    # Updates the total number of drink events logged by that bottle
+    execute_statement("UPDATE bottles set num_drinks = num_drinks+1 WHERE homie_fb_id = %s AND bottle_id = %s;", args=(homie_fb_id, bottle_id))
+
+def insert_homie(homie_fb_id, homie_name):
+    insert_bottle("NULL", "0", homie_fb_id)
+    bottle_entry = execute_statement("SELECT * FROM bottles WHERE homie_fb_id = %s AND bottle_name = %s;", args=(homie_fb_id, "NULL"), ret=True)
+    bottle_id = bottle_entry[0][0]
+    new_homie_sql = """INSERT INTO homies (homie_fb_id, homie_name, curr_bottle_id) VALUES(%s, %s, %s);"""
+    execute_statement(new_homie_sql, args=(homie_fb_id, homie_name, bottle_id))
+
+def get_drinks():
+    try:
+        all_drinks = execute_statement("SELECT * FROM drinks;", ret=True)
+    except:
+        raise
+    return(all_drinks)
+
+def update_bottle(name, homie_fb_id):
+    try:
+        bottle_entry = execute_statement("SELECT * FROM bottles WHERE homie_fb_id = %s AND bottle_name = %s;", args=(homie_fb_id, name), ret=True)
+        bottle_id = bottle_entry[0][0]
+        execute_statement("UPDATE homies set curr_bottle_id = %s WHERE homie_fb_id = %s;", args=(bottle_id, homie_fb_id))
+    except:
+        raise
+
+def insert_bottle(name, size, homie_fb_id):
+    new_bottle_sql = """INSERT INTO bottles (homie_fb_id, bottle_name, bottle_size, num_drinks) VALUES(%s, %s, %s, %s);"""
+    return execute_statement(new_bottle_sql, [homie_fb_id, name, size, 0])
+    
+def delete_bottle(name, homie_fb_id):
+    bottle_entry = execute_statement("SELECT * FROM bottles WHERE homie_fb_id = %s AND bottle_name = %s;", args=(homie_fb_id, name), ret=True)
+    bottle_id = bottle_entry[0][0]
+    execute_statement("DELETE FROM drinks WHERE bottle_id = %s;", args=(bottle_id,))
+    
+    homie_entry = execute_statement("SELECT * FROM homies WHERE homie_fb_id = %s;", args=(homie_fb_id,), ret=True)
+    if homie_entry[0][2] == bottle_id:
+        update_bottle("NULL", homie_fb_id)
+    delete_bottle_sql = """DELETE FROM bottles WHERE bottle_name = %s AND homie_fb_id = %s;"""
+    return execute_statement(delete_bottle_sql, [name, homie_fb_id])
+
+def get_bottle_stats(homie_fb_id):
+    try:
+        results = execute_statement("SELECT bottle_name, bottle_size, num_drinks FROM bottles WHERE homie_fb_id = %s", args=(homie_fb_id,), ret=True)
+    except:
+        raise
+    return(results)
+
+def get_bottle_ids(homie_fb_id):
+    results = execute_statement("SELECT bottle_id, bottle_size FROM bottles WHERE homie_fb_id = %s", args=(homie_fb_id,), ret=True)
+    return results
+
+def get_homie_events_over_time(homie_fb_id, time_string):
+    results = execute_statement("SELECT bottle_id FROM drinks WHERE homie_fb_id = %s AND drink_time > now() - interval %s;", args=(homie_fb_id, time_string), ret=True)
+    return results
+
+def get_homie_list():
+    results = execute_statement("SELECT homie_fb_id, homie_name FROM homies;", ret=True)
+    return results
+
+def execute_statement(sql, args=False, ret=False):
     conn = None
     try:
         # read database configuration
@@ -93,78 +146,22 @@ def execute_statement(sql, args=False):
             cur.execute(sql, args)
         else:
             cur.execute(sql)
+        if ret:
+            results = cur.fetchall()
+        else:
+            results = None
         # commit the changes to the database
         conn.commit()
         # close communication with the database
         cur.close()
     except (Exception, psycopg2.DatabaseError) as error:
-        print(error)
+        raise
     finally:
         if conn is not None:
             conn.close()
+    return results
 
 
-def insert_drink(homie_fb_id):
-    add_drink_sql = """INSERT INTO drink_stats (homie_fb_id) VALUES(%s);"""
-    execute_statement(add_drink_sql, (homie_fb_id,))
-
-def zero_homie():
-    new_homie_sql = "UPDATE homie_stats SET num_drinks = 0;"
-    execute_statement(new_homie_sql)
-
-def decrement_homie(homie_id):
-    new_homie_sql = "UPDATE homie_stats SET num_drinks = num_drinks-1 WHERE homie_fb_id = %s;"
-    execute_statement(new_homie_sql, (homie_id,))
-
-def increment_homie(homie_id):
-    new_homie_sql = "UPDATE homie_stats SET num_drinks = num_drinks+1 WHERE homie_fb_id = %s;"
-    execute_statement(new_homie_sql, (homie_id,))
-
-def update_homie(homie):
-    new_homie_sql = """UPDATE homie_stats
-                        SET homie_drink_size = %s
-                        WHERE homie_fb_id = %s"""
-    execute_statement(new_homie_sql, (homie[2], homie[0]))
-
-def insert_homie(homie):
-    new_homie_sql = """INSERT INTO homie_stats (homie_fb_id, homie_name, homie_drink_size, num_drinks) VALUES(%s, %s, %s, %s);"""
-    execute_statement(new_homie_sql, homie)
-
-def get_drinks():
-    conn = None
-    try:
-        params = config()
-        conn = psycopg2.connect(**params)
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM drink_stats;")
-        all_drinks = cur.fetchall()
-        cur.close()
-    except (Exception, psycopg2.DatabaseError) as error:
-        return False
-    finally:
-        if conn is not None:
-            conn.close()
-    return(all_drinks)
-
-
-def get_homies():
-    conn = None
-    try:
-        params = config()
-        conn = psycopg2.connect(**params)
-        cur = conn.cursor()
-        cur.execute("SELECT homie_fb_id, homie_name, homie_drink_size, num_drinks FROM homie_stats;")
-        homie_table = cur.fetchall()
-
-        print(homie_table)
-        cur.close()
-    except (Exception, psycopg2.DatabaseError) as error:
-        print("Error in getting homie table, 90 percent chance its monday(?) and no one... drank(?): {}".format(error))
-        return False
-    finally:
-        if conn is not None:
-            conn.close()
-
-    return(homie_table)
-
-
+#insert_bottle_table()
+#insert_homie_table()
+#insert_drink_table()
