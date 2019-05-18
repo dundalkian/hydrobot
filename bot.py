@@ -92,7 +92,7 @@ physics decrement - remove the last drink event
             verbose_list = ["-v", "full", "verbose", "--verbose"]
             if len(ma)>2 and ma[2] in verbose_list:
                 group_stats(self, thread_id, thread_type, verbose=True)
-            elif len(ma)>3 and str.isdigit(ma[2]) and ma[3] in ["minute","hour","day","week","year"]:
+            elif len(ma)>3 and str.isdigit(ma[2]) and ma[3] in ["second","minute","hour","day","week","year","seconds","minutes","hours","days","weeks","years"]:
                 ts = "{} {}".format(ma[2], ma[3])
                 if len(ma)>4 and ma[4] in verbose_list:
                     group_stats(self, thread_id, thread_type, time_string=ts, verbose=True)
@@ -140,7 +140,7 @@ def homie_stats(fb_id, time_string):
 def group_stats(self, thread_id, thread_type, time_string='1 day', verbose=False):
     homies = dict(data.get_homie_list())
     homie_results = []
-    string = "Hydration Stats over the past {}s:".format(time_string)
+    string = "Hydration Stats over the past {}:".format(time_string)
     for hid in homies:
         stats = homie_stats(hid, time_string)
         homie_results.append([homies[hid], stats[0], stats[1]])
@@ -150,7 +150,7 @@ def group_stats(self, thread_id, thread_type, time_string='1 day', verbose=False
     king_quota = 1
     for h in homie_results:
         if verbose:
-            string = string + "\n - {} drank {}L (finishing {} bottles total in the past {}s)".format(h[0], h[1], h[2], time_string)
+            string = string + "\n - {} drank {}L (finishing {} bottles total in the past {})".format(h[0], h[1], h[2], time_string)
         else:
             if h[1] < 2.0:
                 string = string + "\n 🥵 "
