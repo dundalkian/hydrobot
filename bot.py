@@ -68,6 +68,7 @@ physics stats ([num] [interval]) (-v|full|verbose)- lists stats
 physics add [name] [num] - add a bottle (!!no whitespace!!) and its size (give in ml)
 physics remove [name] - remove your bottle called [name] (Warning, will delete all drink events made with this bottle)
 physics update [name] - update your current bottle to the bottle with [name]
+physics drink [name] - logs a single drink with bottle [name], does not change current bottle
 physics rename [name] [newname] - NOT WORKING
 physics list - shows all of your bottles
 physics decrement - remove the last drink event
@@ -88,6 +89,8 @@ physics decrement - remove the last drink event
             homie_decrement(self, thread_id, thread_type, author_id)
         elif ma[1] == "increment" or ma[1] == "inc":
             homie_increment(self, thread_id, thread_type, author_id)
+        elif ma[1] == "drink":
+            data.insert_drink(author_id, bottle_name=ma[2])
         elif ma[1] == "stats":
             verbose_list = ["-v", "full", "verbose", "--verbose"]
             if len(ma)>2 and ma[2] in verbose_list:
@@ -100,6 +103,7 @@ physics decrement - remove the last drink event
                     group_stats(self, thread_id, thread_type, time_string=ts, verbose=False)
             else:
                 group_stats(self, thread_id, thread_type, verbose=False)
+
 def send_message(self, txt, thread_id, thread_type):
     self.send(Message(text=txt), thread_id=thread_id, thread_type=thread_type)
 
@@ -111,6 +115,7 @@ def homie_increment(self, thread_id, thread_type, author_id):
 
 def homie_decrement(self, thread_id, thread_type, author_id):
     data.delete_last_drink(author_id)
+
 
 def get_homie_bottles(self, thread_id, thread_type, fb_id):
     string = "Your Bottles:"

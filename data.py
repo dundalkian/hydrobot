@@ -67,10 +67,18 @@ def delete_last_drink(homie_fb_id):
     execute_statement(delete_drink_sql, (homie_fb_id,))
     execute_statement("UPDATE bottles set num_drinks = num_drinks-1 WHERE homie_fb_id = %s AND bottle_id = %s;", args=(homie_fb_id, bottle_id))
 
-def insert_drink(homie_fb_id):
-    # Fetches current bottle selected by user
-    homie_entry = execute_statement("SELECT * FROM homies WHERE homie_fb_id = %s;", args=(homie_fb_id,), ret=True)
-    bottle_id = homie_entry[0][2]
+
+
+
+def insert_drink(homie_fb_id, bottle_name=None):
+    if bottle_name is None:
+        # Fetches current bottle selected by user
+        homie_entry = execute_statement("SELECT * FROM homies WHERE homie_fb_id = %s;", args=(homie_fb_id,), ret=True)
+        bottle_id = homie_entry[0][2]
+    else:
+        bottle_entry = execute_statement("SELECT * FROM bottles WHERE homie_fb_id = %s AND bottle_name = %s;", args=(homie_fb_id, bottle_name), ret=True)
+        bottle_id = bottle_entry[0][0]
+
     # Adds a drink event with the currently selected bottle id
     add_drink_sql = """INSERT INTO drinks (homie_fb_id, bottle_id) VALUES(%s, %s);"""
     execute_statement(add_drink_sql, (homie_fb_id, bottle_id))
