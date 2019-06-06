@@ -99,7 +99,7 @@ def get_drinks():
         raise
     return(all_drinks)
 
-def update_bottle(name, homie_fb_id):
+def switch_bottle(name, homie_fb_id):
     try:
         bottle_entry = execute_statement("SELECT * FROM bottles WHERE homie_fb_id = %s AND bottle_name = %s;", args=(homie_fb_id, name), ret=True)
         bottle_id = bottle_entry[0][0]
@@ -118,7 +118,7 @@ def delete_bottle(name, homie_fb_id):
     
     homie_entry = execute_statement("SELECT * FROM homies WHERE homie_fb_id = %s;", args=(homie_fb_id,), ret=True)
     if homie_entry[0][2] == bottle_id:
-        update_bottle("NULL", homie_fb_id)
+        switch_bottle("NULL", homie_fb_id)
     delete_bottle_sql = """DELETE FROM bottles WHERE bottle_name = %s AND homie_fb_id = %s;"""
     return execute_statement(delete_bottle_sql, [name, homie_fb_id])
 

@@ -67,7 +67,7 @@ physics stats ([num] [interval]) (-v|full|verbose)- lists stats
   -> "physics stats -v"
 physics add [name] [num] - add a bottle (!!no whitespace!!) and its size (give in ml)
 physics remove [name] - remove your bottle called [name] (Warning, will delete all drink events made with this bottle)
-physics update [name] - update your current bottle to the bottle with [name]
+physics switch [name] - switch your current bottle to the bottle with [name]
 physics drink [name] - logs a single drink with bottle [name], does not change current bottle
 physics rename [name] [newname] - NOT WORKING
 physics list - shows all of your bottles
@@ -79,8 +79,8 @@ physics decrement - remove the last drink event
             data.insert_bottle(ma[2], ma[3], author_id)
         elif ma[1] == "remove":
             data.delete_bottle(ma[2], author_id)
-        elif ma[1] == "update":
-            data.update_bottle(ma[2], author_id)
+        elif ma[1] == "switch":
+            data.switch_bottle(ma[2], author_id)
         elif ma[1] == "rename":
             pass
         elif ma[1] == "list":
