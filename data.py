@@ -109,7 +109,7 @@ def switch_bottle(name, homie_fb_id):
 
 def get_bottle(homie_fb_id):
     try:
-        bottle_entry = execute_statement("SELECT curr_bottle_id from homies where homie_fb_id = %s;", args=(homie_fb_id), ret=True)
+        bottle_entry = execute_statement("SELECT curr_bottle_id from homies where homie_fb_id = %s;", args=(homie_fb_id,), ret=True)
         return bottle_entry[0][0]
     except:
         raise
