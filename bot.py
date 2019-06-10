@@ -121,10 +121,10 @@ def get_homie_bottles(self, thread_id, thread_type, fb_id):
     string = "Your Bottles:"
     selected = data.get_bottle(fb_id)
     bottles = data.get_bottle_stats(fb_id)
-    bottles = filter(lambda x: x[0] != 'NULL', bottles)
+    bottles = filter(lambda x: x[1] != 'NULL', bottles)
     for b in bottles:
-        indic = '-' if b != selected else '🍼'
-        string += "\n {} {} : {}mL : {} total drinks".format(indic, b[0], b[1], b[2])
+        indic = '-' if b[0] != selected else '🍼'
+        string += "\n {} {} : {}mL : {} total drinks".format(indic, b[1], b[2], b[3])
     self.send(Message(text=string), thread_id = thread_id, thread_type=thread_type) 
 
 

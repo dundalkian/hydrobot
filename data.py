@@ -131,7 +131,7 @@ def delete_bottle(name, homie_fb_id):
 
 def get_bottle_stats(homie_fb_id):
     try:
-        results = execute_statement("SELECT bottle_name, bottle_size, num_drinks FROM bottles WHERE homie_fb_id = %s", args=(homie_fb_id,), ret=True)
+        results = execute_statement("SELECT bottle_id, bottle_name, bottle_size, num_drinks FROM bottles WHERE homie_fb_id = %s", args=(homie_fb_id,), ret=True)
     except:
         raise
     return(results)
