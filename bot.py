@@ -69,7 +69,7 @@ physics add [name] [num] - add a bottle (!!no whitespace!!) and its size (give i
 physics remove [name] - remove your bottle called [name] (Warning, will delete all drink events made with this bottle)
 physics switch [name] - switch your current bottle to the bottle with [name]
 physics drink [name] - logs a single drink with bottle [name], does not change current bottle
-physics rename [name] [newname] - NOT WORKING
+physics rename [name] [newname] - rename a bottle
 physics list - shows all of your bottles
 physics decrement - remove the last drink event
 {} - tap emoji to log a drink, uses your current bottle
@@ -82,7 +82,7 @@ physics decrement - remove the last drink event
         elif ma[1] == "switch":
             data.switch_bottle(ma[2], author_id)
         elif ma[1] == "rename":
-            pass
+            data.rename_bottle(ma[2], ma[3], author_id)
         elif ma[1] == "list":
             get_homie_bottles(self, thread_id, thread_type, author_id)
         elif ma[1] == "decrement" or ma[1] == "dec":
@@ -122,7 +122,7 @@ def get_homie_bottles(self, thread_id, thread_type, fb_id):
     string = "Your Bottles:"
     selected = data.get_bottle(fb_id)
     bottles = data.get_bottle_stats(fb_id)
-    bottles = filter(lambda x: x[1] != 'NULL', bottles)
+    bottles = sorted(filter(lambda x: x[1] != 'NULL', bottles), key=lambda x: x[3], reverse=True)
     for b in bottles:
         indic = '-' if b[0] != selected else '🍼'
         string += "\n {} {} : {}mL : {} total drinks".format(indic, b[1], b[2], b[3])

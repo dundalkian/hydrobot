@@ -129,6 +129,11 @@ def delete_bottle(name, homie_fb_id):
     delete_bottle_sql = """DELETE FROM bottles WHERE bottle_name = %s AND homie_fb_id = %s;"""
     return execute_statement(delete_bottle_sql, [name, homie_fb_id])
 
+def rename_bottle(name, new_name, homie_fb_id):
+    bottle_entry = execute_statement("SELECT * FROM bottles WHERE homie_fb_id = %s AND bottle_name = %s;", args=(homie_fb_id, name), ret=True)
+    bottle_id = bottle_entry[0][0]
+    return execute_statement("UPDATE bottles SET bottle_name = %s WHERE bottle_id = %s;", args=(new_name, bottle_id))
+
 def get_bottle_stats(homie_fb_id):
     try:
         results = execute_statement("SELECT bottle_id, bottle_name, bottle_size, num_drinks FROM bottles WHERE homie_fb_id = %s", args=(homie_fb_id,), ret=True)
