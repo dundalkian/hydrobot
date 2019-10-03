@@ -7,7 +7,7 @@ import re
 import sys
 
 from fbchat import Client, log
-from fbchat.models import Message, ThreadType
+from fbchat.models import *
 
 import data
 
@@ -44,12 +44,12 @@ class HydroBot(Client):
             ma = messageText.split() # message array
 
             if ma[0].lower() == "physics":
-                process_message(self, author_id, ma, thread_id, thread_type)
+                process_message(self, author_id, ma, thread_id, thread_type, message_object)
             elif messageText == client.fetchThreadInfo(thread_id)[thread_id].emoji:
-                homie_increment(self, thread_id, thread_type, author_id)
+                homie_increment(self, thread_id, thread_type, author_id, message_object)
         super(HydroBot, self).onMessage(author_id=author_id, message_object=message_object, thread_id=thread_id, thread_type=thread_type, **kwargs)
 
-def process_message(self, author_id, ma, thread_id, thread_type):
+def process_message(self, author_id, ma, thread_id, thread_type, message_object):
     if author_id != self.uid:
         print(ma)
         user = self.fetchUserInfo(author_id)[author_id]
@@ -86,9 +86,9 @@ physics decrement - remove the last drink event
         elif ma[1] == "list":
             get_homie_bottles(self, thread_id, thread_type, author_id)
         elif ma[1] == "decrement" or ma[1] == "dec":
-            homie_decrement(self, thread_id, thread_type, author_id)
+            homie_decrement(self, thread_id, thread_type, author_id, message_object)
         elif ma[1] == "increment" or ma[1] == "inc":
-            homie_increment(self, thread_id, thread_type, author_id)
+            homie_increment(self, thread_id, thread_type, author_id, message_object)
         elif ma[1] == "drink":
             data.insert_drink(author_id, bottle_name=ma[2])
         elif ma[1] == "stats":
@@ -110,12 +110,13 @@ def send_message(self, txt, thread_id, thread_type):
 def add_homie(self, thread_id, thread_type, fbid, name, size):
     data.insert_homie(fbid, name)
 
-def homie_increment(self, thread_id, thread_type, author_id):
+def homie_increment(self, thread_id, thread_type, author_id, message_object):
     data.insert_drink(author_id)
+    self.reactToMessage(message_object.uid, MessageReaction.HEART)
 
-def homie_decrement(self, thread_id, thread_type, author_id):
+def homie_decrement(self, thread_id, thread_type, author_id, message_object):
     data.delete_last_drink(author_id)
-
+    self.reactToMessage(message_object.uid, MessageReaction.HEART)
 
 def get_homie_bottles(self, thread_id, thread_type, fb_id):
     string = "Your Bottles:"
@@ -185,5 +186,6 @@ def startupClient(email, password):
 ### Reving up the engines ###
 if __name__ == "__main__":
     creds = config()
+    print(creds)
     client = startupClient(creds['email'], creds['password'])
     client.listen()
