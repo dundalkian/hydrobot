@@ -5,6 +5,9 @@ import datetime
 from configparser import ConfigParser
 import re
 import sys
+import logging
+from logging.handlers import RotatingFileHandler
+import traceback
 
 from fbchat import Client, log
 from fbchat.models import *
@@ -183,9 +186,23 @@ def startupClient(email, password):
     return client
 
 
+
+
 ### Reving up the engines ###
 if __name__ == "__main__":
-    creds = config()
-    print(creds)
-    client = startupClient(creds['email'], creds['password'])
-    client.listen()
+    while True:
+        try:
+            logger = logging.getLogger("Rotating Log")
+            logger.setLevel(logging.ERROR)
+            handler = RotatingFileHandler("log.txt", maxBytes=100000, backupCount=5)
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+            creds = config()
+            print(creds)
+            client = startupClient(creds['email'], creds['password'])
+            client.listen()
+        except Exception as e:
+            logger.error(str(e))
+            logger.error(traceback.format_exc())
+
