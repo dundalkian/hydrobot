@@ -189,20 +189,20 @@ def startupClient(email, password):
 
 
 ### Reving up the engines ###
-if __name__ == "__main__":
-    while True:
-        try:
-            logger = logging.getLogger("Rotating Log")
-            logger.setLevel(logging.ERROR)
-            handler = RotatingFileHandler("log.txt", maxBytes=100000, backupCount=5)
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            creds = config()
-            print(creds)
-            client = startupClient(creds['email'], creds['password'])
-            client.listen()
-        except Exception as e:
-            logger.error(str(e))
-            logger.error(traceback.format_exc())
+while True:
+    try:
+        logger = logging.getLogger("Rotating Log")
+        logger.setLevel(logging.ERROR)
+        handler = RotatingFileHandler("log.txt", maxBytes=100000, backupCount=5)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        creds = config()
+        print(creds)
+        client = startupClient(creds['email'], creds['password'])
+        client.listen()
+    except Exception as e:
+        time.sleep(5)
+        logger.error(str(e))
+        logger.error(traceback.format_exc())
 
