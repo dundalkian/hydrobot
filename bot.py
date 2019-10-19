@@ -36,11 +36,9 @@ def config(filename=sys.path[0] + '/config.ini', section='facebook credentials')
 
 
 class HydroBot(Client):
-    all_homies = []
-    current_homie_chad = ''
-    def pmMe(self, txt):
-        self.send(Message(text = txt), thread_id = client.uid, thread_type=ThreadType.USER)
-#1398444230228776 testing chat
+    #def pmMe(self, txt):
+    #    self.send(Message(text = txt), thread_id = client.uid, thread_type=ThreadType.USER)
+    #1398444230228776 testing chat
     def onMessage(self, author_id, message_object, thread_id, thread_type, **kwargs):
         if message_object.text is not None and (thread_id == '1802551463181435' or thread_type == ThreadType.USER):
             messageText = message_object.text
@@ -189,20 +187,12 @@ def startupClient(email, password):
 
 
 ### Reving up the engines ###
+a = 0
 while True:
-    try:
-        logger = logging.getLogger("Rotating Log")
-        logger.setLevel(logging.ERROR)
-        handler = RotatingFileHandler("log.txt", maxBytes=100000, backupCount=5)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-        creds = config()
-        print(creds)
-        client = startupClient(creds['email'], creds['password'])
-        client.listen()
-    except Exception as e:
-        time.sleep(5)
-        logger.error(str(e))
-        logger.error(traceback.format_exc())
-
+    creds = config()
+    print(creds)
+    client = startupClient(creds['email'], creds['password'])
+    with open("log.txt", "a") as f:
+        print(f"Starting iteration number {a} at {time.asctime()}", file=f)
+    a = a+1
+    client.listen()
