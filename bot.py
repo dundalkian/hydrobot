@@ -1,109 +1,10 @@
-import json
-import os
-import time
-import datetime
-from configparser import ConfigParser
-import re
+from fbchat_muqit import Client, Message, ThreadType, MessageReaction
+import asyncio
 import sys
-import logging
-from logging.handlers import RotatingFileHandler
-import traceback
-
-from fbchat import Client, log
-from fbchat.models import *
-
+from datetime import datetime
+# Project imports
 import data
-
-def config(filename=sys.path[0] + '/config.ini', section='facebook credentials'):
-    # create a parser 
-    parser = ConfigParser()
-    # read config file
-    parser.read(filename)
-
-    # get section
-    creds = {}
-    if parser.has_section(section):
-        params = parser.items(section)
-        for param in params:
-            creds[param[0]] = param[1]
-    elif os.environ['EMAIL']: 
-        creds['email'] = os.environ['EMAIL']
-        creds['password'] = os.environ['PASSWORD']
-    else:
-        raise Exception(
-            'Section {0} not found in the {1} file'.format(section, filename))
-    return creds
-
-
-class HydroBot(Client):
-    #def pmMe(self, txt):
-    #    self.send(Message(text = txt), thread_id = client.uid, thread_type=ThreadType.USER)
-    #1398444230228776 testing chat
-    def onMessage(self, author_id, message_object, thread_id, thread_type, **kwargs):
-        if message_object.text is not None and (thread_id == '1802551463181435' or thread_type == ThreadType.USER):
-            messageText = message_object.text
-            ma = messageText.split() # message array
-
-            if ma[0].lower() == "physics":
-                process_message(self, author_id, ma, thread_id, thread_type, message_object)
-            elif messageText == client.fetchThreadInfo(thread_id)[thread_id].emoji:
-                homie_increment(self, thread_id, thread_type, author_id, message_object)
-        super(HydroBot, self).onMessage(author_id=author_id, message_object=message_object, thread_id=thread_id, thread_type=thread_type, **kwargs)
-
-def process_message(self, author_id, ma, thread_id, thread_type, message_object):
-    if author_id != self.uid:
-        print(ma)
-        user = self.fetchUserInfo(author_id)[author_id]
-        name = user.name
-        try:
-            data.insert_homie(author_id, name)
-        except:
-            pass
-        if ma[1] == "help":
-            txt = """
-physics stats ([num] [interval]) (-v|full|verbose)- lists stats
-  -> "physics stats 1 day full"
-  -> "physics stats"
-  -> "physics stats 1 minute"
-  -> "physics stats -v"
-physics add [name] [num] - add a bottle (!!no whitespace!!) and its size (give in ml)
-physics remove [name] - remove your bottle called [name] (Warning, will delete all drink events made with this bottle)
-physics switch [name] - switch your current bottle to the bottle with [name]
-physics drink [name] - logs a single drink with bottle [name], does not change current bottle
-physics rename [name] [newname] - rename a bottle
-physics list - shows all of your bottles
-physics decrement - remove the last drink event
-{} - tap emoji to log a drink, uses your current bottle
-""".format(client.fetchThreadInfo(thread_id)[thread_id].emoji)
-            self.send(Message(text = txt), thread_id=thread_id, thread_type=thread_type)
-        elif ma[1] == "add" and str.isdigit(ma[3]):
-            data.insert_bottle(ma[2], ma[3], author_id)
-        elif ma[1] == "remove":
-            data.delete_bottle(ma[2], author_id)
-        elif ma[1] == "switch":
-            data.switch_bottle(ma[2], author_id)
-        elif ma[1] == "rename":
-            data.rename_bottle(ma[2], ma[3], author_id)
-        elif ma[1] == "list":
-            get_homie_bottles(self, thread_id, thread_type, author_id)
-        elif ma[1] == "decrement" or ma[1] == "dec":
-            homie_decrement(self, thread_id, thread_type, author_id, message_object)
-        elif ma[1] == "increment" or ma[1] == "inc":
-            homie_increment(self, thread_id, thread_type, author_id, message_object)
-        elif ma[1] == "drink":
-            data.insert_drink(author_id, bottle_name=ma[2])
-        elif ma[1] == "stats":
-            verbose_list = ["-v", "full", "verbose", "--verbose"]
-            if len(ma)>2 and ma[2] in verbose_list:
-                group_stats(self, thread_id, thread_type, verbose=True)
-            elif len(ma)>3 and str.isdigit(ma[2]) and ma[3] in ["second","minute","hour","day","week","year","seconds","minutes","hours","days","weeks","years"]:
-                ts = "{} {}".format(ma[2], ma[3])
-                if len(ma)>4 and ma[4] in verbose_list:
-                    group_stats(self, thread_id, thread_type, time_string=ts, verbose=True)
-                else:
-                    group_stats(self, thread_id, thread_type, time_string=ts, verbose=False)
-            else:
-                group_stats(self, thread_id, thread_type, verbose=False)
+# Create a class use Client as base Class
 
 def send_message(self, txt, thread_id, thread_type):
     self.send(Message(text=txt), thread_id=thread_id, thread_type=thread_type)
@@ -111,13 +12,15 @@ def send_message(self, txt, thread_id, thread_type):
 def add_homie(self, thread_id, thread_type, fbid, name, size):
     data.insert_homie(fbid, name)
 
-def homie_increment(self, thread_id, thread_type, author_id, message_object):
+async def homie_increment(self, thread_id, thread_type, author_id, message_object):
     data.insert_drink(author_id)
-    self.reactToMessage(message_object.uid, MessageReaction.HEART)
+    #await message_object.react(str(MessageReaction.YES))
+    await self.reactToMessage(message_object.uid, MessageReaction.YES)
 
-def homie_decrement(self, thread_id, thread_type, author_id, message_object):
+async def homie_decrement(self, thread_id, thread_type, author_id, message_object):
     data.delete_last_drink(author_id)
-    self.reactToMessage(message_object.uid, MessageReaction.HEART)
+    #await message_object.react(str(MessageReaction.YES))
+    await self.reactToMessage(message_object.uid, MessageReaction.YES)
 
 def get_homie_bottles(self, thread_id, thread_type, fb_id):
     string = "Your Bottles:"
@@ -127,7 +30,8 @@ def get_homie_bottles(self, thread_id, thread_type, fb_id):
     for b in bottles:
         indic = '-' if b[0] != selected else '🍼'
         string += "\n {} {} : {}mL : {} total drinks".format(indic, b[1], b[2], b[3])
-    self.send(Message(text=string), thread_id = thread_id, thread_type=thread_type) 
+    return string
+    #self.send(Message(text=string), thread_id = thread_id, thread_type=thread_type) 
 
 
 def homie_stats(fb_id, time_string):
@@ -136,7 +40,6 @@ def homie_stats(fb_id, time_string):
     
     # Every event for person within timespan but only the bottle ids
     events_as_bottle_ids = [i for (i,) in data.get_homie_events_over_time(fb_id, time_string)]
-
     total = 0
     sums = len(events_as_bottle_ids)
     for e in events_as_bottle_ids:
@@ -146,7 +49,7 @@ def homie_stats(fb_id, time_string):
     return [total/1000, sums]
 
 
-def group_stats(self, thread_id, thread_type, time_string='1 day', verbose=False):
+def group_stats(time_string='1 day', verbose=False):
     homies = dict(data.get_homie_list())
     homie_results = []
     string = "Hydration Stats over the past {}:".format(time_string)
@@ -169,30 +72,128 @@ def group_stats(self, thread_id, thread_type, time_string='1 day', verbose=False
             else:
                 string = string + "\n 👍 "
             string = string + "{}: {}L".format(h[0], h[1])
-    self.send(Message(text=string), thread_id = thread_id, thread_type=thread_type) 
+    return string
+    #self.send(Message(text=string), thread_id = thread_id, thread_type=thread_type) 
 
-def startupClient(email, password):
+class HydroBot(Client):
+
+    async def onMessage(self, mid, author_id: str, message_object: Message, thread_id, thread_type=ThreadType.USER, **kwargs):
+        if author_id != self.uid and message_object.text is not None and (thread_id == '1802551463181435' or thread_id == '2813871368632313'):
+            messageText = message_object.text
+            ma = messageText.split() # message array
+            thread_emoji = await self.get_thread_emoji(thread_id)
+            if ma[0].lower() == "physics":
+                print(f"Message was meant for physics: {messageText}")
+                await self.process_message(mid, author_id, ma, thread_id, thread_type, message_object)
+                #await message_object.react(thread_emoji)
+            elif messageText == thread_emoji:
+                print(f"Message was an emoji: {messageText}")
+                await homie_increment(self, thread_id, thread_type, author_id, message_object)
+            else:
+                print(f"Message was not meant for the bot: {messageText}")
+        #super(HydroBot, self).onMessage(mid=mid, author_id=author_id, message_object=message_object, thread_id=thread_id, thread_type=thread_type, **kwargs)
+
+        """you will receive all messenger messages here every time anyone sends messages in a thread (Group/User)"""
+        # author_id is message sender ID
+        # if author_id != self.uid:
+        #     await message_object.reply("Hello! This is a reply")
+        #     await message_object.react("❤️")
+        #     # mid is message ID
+        #     await self.sendMessage("Hello", thread_id, thread_type, reply_to_id=mid)
+    
+    async def get_thread_emoji(self, thread_id):
+        thread_info = await self.fetchThreadInfo(thread_id)
+        thread_emoji = thread_info[thread_id].emoji
+        return thread_emoji
+    
+    async def process_message(self, mid, author_id, ma, thread_id, thread_type, message_object):
+        response = ""
+        if author_id != self.uid:
+            user_info = await self.fetchUserInfo(author_id)
+            user = user_info[author_id]
+            name = user.name
+            try:
+                data.insert_homie(author_id, name) # TODO: Use add_homie() instead of this, this line just replaces that.
+            except:
+                pass
+            if ma[1] == "help":
+                txt = """
+physics stats ([num] [interval]) (-v|full|verbose)- lists stats
+-> "physics stats 1 day full"
+-> "physics stats"
+-> "physics stats 35 minutes"
+-> "physics stats -v"
+physics add [name] [num] - add a bottle (!!no whitespace!!) and its size (give in mL)
+physics remove [name] - remove your bottle called [name] (Warning, will delete all drink events made with this bottle)
+physics switch [name] - switch your current bottle to the bottle with [name].
+physics drink [name] - logs a single drink with bottle [name], does not change current bottle
+physics rename [name] [newname] - rename a bottle
+physics list - shows all of your bottles
+physics decrement - remove the last drink event
+{} - tap emoji to log a drink, uses your current bottle
+
+Note: You must add a bottle to get started (old db got wiped). Measure it in mL.
+
+Recommended daily intake is over 2 liters of water! Hydrate or Diedrate!
+    """.format(await self.get_thread_emoji(thread_id))
+                await self.send(Message(text = txt), thread_id=thread_id, thread_type=thread_type)
+            elif ma[1] == "add" and str.isdigit(ma[3]):
+                data.insert_bottle(ma[2], ma[3], author_id)
+                await self.reactToMessage(message_object.uid, MessageReaction.YES)
+            elif ma[1] == "remove":
+                data.delete_bottle(ma[2], author_id)
+                await self.reactToMessage(message_object.uid, MessageReaction.YES)
+            elif ma[1] == "switch":
+                data.switch_bottle(ma[2], author_id)
+                await self.reactToMessage(message_object.uid, MessageReaction.YES)
+            elif ma[1] == "rename":
+                data.rename_bottle(ma[2], ma[3], author_id)
+                await self.reactToMessage(message_object.uid, MessageReaction.YES)
+            elif ma[1] == "list":
+                response = get_homie_bottles(self, thread_id, thread_type, author_id)
+            elif ma[1] == "decrement" or ma[1] == "dec":
+                await homie_decrement(self, thread_id, thread_type, author_id, message_object)
+            elif ma[1] == "increment" or ma[1] == "inc":
+                await homie_increment(self, thread_id, thread_type, author_id, message_object)
+            elif ma[1] == "drink":
+                data.insert_drink(author_id, bottle_name=ma[2])
+                await self.reactToMessage(message_object.uid, MessageReaction.YES)
+            elif ma[1] == "stats":
+                verbose_list = ["-v", "full", "verbose", "--verbose"]
+                if len(ma)>2 and ma[2] in verbose_list:
+                    response = group_stats(verbose=True)
+                elif len(ma)>3 and str.isdigit(ma[2]) and ma[3] in ["second","minute","hour","day","week","year","seconds","minutes","hours","days","weeks","years"]:
+                    ts = "{} {}".format(ma[2], ma[3])
+                    if len(ma)>4 and ma[4] in verbose_list:
+                        response = group_stats(time_string=ts, verbose=True)
+                    else:
+                        response = group_stats(time_string=ts, verbose=False)
+                else:
+                    response = group_stats(verbose=False)
+            
+            if response:
+                await self.sendMessage(response, thread_id, thread_type, reply_to_id=mid)
+    
+
+async def main():
+    cookies_path = "ufc-facebook.json"
+    bot = await HydroBot.startSession(cookies_path)
+    if await bot.isLoggedIn():
+        fetch_client_info = await bot.fetchUserInfo(bot.uid)
+        client_info = fetch_client_info[bot.uid]
+        print("Logged in as", client_info.name)
+        print(f"Group Stats: {group_stats()}")
+
     try:
-        with open("session.txt", "r") as session:
-            session_cookies = json.loads(session.read())
-    except FileNotFoundError:
-        session_cookies = None
-
-    client = HydroBot(email, password, session_cookies=session_cookies)
-    with open("session.txt", "w") as session:
-        session.write(json.dumps(client.getSession()))
-    return client
+        await bot.listen()
+    except Exception as e:
+        print(e)
 
 
-
-
-### Reving up the engines ###
-a = 0
 while True:
-    creds = config()
-    print(creds)
-    client = startupClient(creds['email'], creds['password'])
-    with open("log.txt", "a") as f:
-        print(f"Starting iteration number {a} at {time.asctime()}", file=f)
-    a = a+1
-    client.listen()
+    current_time = datetime.now()
+    # Windows User uncomment below two lines
+    if sys.platform.startswith("win"):
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    print(f"Restarting.... {current_time}")
+    asyncio.run(main())

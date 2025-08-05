@@ -1,6 +1,7 @@
 from urllib import parse
 from configparser import ConfigParser
-import psycopg2
+#import psycopg2
+import sqlite3
 import os
 import sys
 
@@ -29,9 +30,9 @@ def config(filename=sys.path[0]+'/config.ini', section='postgresql'):
 def insert_bottle_table():
     bottle_table_sql = """
                 CREATE TABLE bottles (
-                    bottle_id SERIAL PRIMARY KEY,
-                    homie_fb_id BIGINT,
-                    bottle_name VARCHAR(255) NOT NULL,
+                    bottle_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    homie_fb_id INTEGER,
+                    bottle_name TEXT NOT NULL,
                     bottle_size INT,
                     num_drinks INT,
                     UNIQUE (homie_fb_id, bottle_name)
@@ -41,8 +42,8 @@ def insert_bottle_table():
 def insert_homie_table():
     homie_table_sql = """
             CREATE TABLE homies (
-            homie_fb_id BIGINT PRIMARY KEY,
-            homie_name VARCHAR(255) NOT NULL,
+            homie_fb_id INTEGER PRIMARY KEY,
+            homie_name TEXT NOT NULL,
             curr_bottle_id INT
             )"""
     execute_statement(homie_table_sql)
@@ -51,46 +52,51 @@ def insert_homie_table():
 def insert_drink_table():
     drink_table_sql = """
             CREATE TABLE drinks (
-                index SERIAL PRIMARY KEY,
-                homie_fb_id BIGINT,
-                drink_time TIMESTAMP DEFAULT NOW(),
+                drink_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                homie_fb_id INTEGER,
+                drink_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 bottle_id INT
             )"""
     
     execute_statement(drink_table_sql)
 
 def delete_last_drink(homie_fb_id):
-    drink_entry = execute_statement("SELECT * FROM drinks WHERE index=(SELECT MAX(index) FROM drinks WHERE homie_fb_id = %s);", args=(homie_fb_id,), ret=True)
+    drink_entry = execute_statement("SELECT * FROM drinks WHERE drink_id=(SELECT MAX(drink_id) FROM drinks WHERE homie_fb_id = ?);", args=(homie_fb_id,), ret=True)
     bottle_id = drink_entry[0][3]
     delete_drink_sql = """DELETE FROM drinks
-    WHERE index=(SELECT MAX(index) FROM drinks WHERE homie_fb_id = %s)"""
+    WHERE drink_id=(SELECT MAX(drink_id) FROM drinks WHERE homie_fb_id = ?)"""
     execute_statement(delete_drink_sql, (homie_fb_id,))
-    execute_statement("UPDATE bottles set num_drinks = num_drinks-1 WHERE homie_fb_id = %s AND bottle_id = %s;", args=(homie_fb_id, bottle_id))
-
-
-
+    execute_statement("UPDATE bottles set num_drinks = num_drinks-1 WHERE homie_fb_id = ? AND bottle_id = ?;", args=(homie_fb_id, bottle_id))
 
 def insert_drink(homie_fb_id, bottle_name=None):
     if bottle_name is None:
         # Fetches current bottle selected by user
-        homie_entry = execute_statement("SELECT * FROM homies WHERE homie_fb_id = %s;", args=(homie_fb_id,), ret=True)
+        homie_entry = execute_statement("SELECT * FROM homies WHERE homie_fb_id = ?;", args=(homie_fb_id,), ret=True)
         bottle_id = homie_entry[0][2]
     else:
-        bottle_entry = execute_statement("SELECT * FROM bottles WHERE homie_fb_id = %s AND bottle_name = %s;", args=(homie_fb_id, bottle_name), ret=True)
+        bottle_entry = execute_statement("SELECT * FROM bottles WHERE homie_fb_id = ? AND bottle_name = ?;", args=(homie_fb_id, bottle_name), ret=True)
         bottle_id = bottle_entry[0][0]
 
     # Adds a drink event with the currently selected bottle id
-    add_drink_sql = """INSERT INTO drinks (homie_fb_id, bottle_id) VALUES(%s, %s);"""
+    add_drink_sql = """INSERT INTO drinks (homie_fb_id, bottle_id) VALUES(?, ?);"""
     execute_statement(add_drink_sql, (homie_fb_id, bottle_id))
     # Updates the total number of drink events logged by that bottle
-    execute_statement("UPDATE bottles set num_drinks = num_drinks+1 WHERE homie_fb_id = %s AND bottle_id = %s;", args=(homie_fb_id, bottle_id))
+    execute_statement("UPDATE bottles set num_drinks = num_drinks+1 WHERE homie_fb_id = ? AND bottle_id = ?;", args=(homie_fb_id, bottle_id))
 
+# I stupidly run this every single message, just ignore these errors
 def insert_homie(homie_fb_id, homie_name):
-    insert_bottle("NULL", "0", homie_fb_id)
-    bottle_entry = execute_statement("SELECT * FROM bottles WHERE homie_fb_id = %s AND bottle_name = %s;", args=(homie_fb_id, "NULL"), ret=True)
+    try: 
+        insert_bottle("NULL", "0", homie_fb_id)
+    except Exception as e:
+        pass
+    bottle_entry = execute_statement("SELECT * FROM bottles WHERE homie_fb_id = ? AND bottle_name = ?;", args=(homie_fb_id, "NULL"), ret=True)
     bottle_id = bottle_entry[0][0]
-    new_homie_sql = """INSERT INTO homies (homie_fb_id, homie_name, curr_bottle_id) VALUES(%s, %s, %s);"""
-    execute_statement(new_homie_sql, args=(homie_fb_id, homie_name, bottle_id))
+    new_homie_sql = """INSERT INTO homies (homie_fb_id, homie_name, curr_bottle_id) VALUES(?, ?, ?);"""
+    try: 
+        execute_statement(new_homie_sql, args=(homie_fb_id, homie_name, bottle_id))
+    except Exception as e:
+        pass
+   
 
 def get_drinks():
     try:
@@ -101,52 +107,67 @@ def get_drinks():
 
 def switch_bottle(name, homie_fb_id):
     try:
-        bottle_entry = execute_statement("SELECT * FROM bottles WHERE homie_fb_id = %s AND bottle_name = %s;", args=(homie_fb_id, name), ret=True)
+        bottle_entry = execute_statement("SELECT * FROM bottles WHERE homie_fb_id = ? AND bottle_name = ?;", args=(homie_fb_id, name), ret=True)
         bottle_id = bottle_entry[0][0]
-        execute_statement("UPDATE homies set curr_bottle_id = %s WHERE homie_fb_id = %s;", args=(bottle_id, homie_fb_id))
+        execute_statement("UPDATE homies set curr_bottle_id = ? WHERE homie_fb_id = ?;", args=(bottle_id, homie_fb_id))
     except:
         raise
 
 def get_bottle(homie_fb_id):
     try:
-        bottle_entry = execute_statement("SELECT curr_bottle_id from homies where homie_fb_id = %s;", args=(homie_fb_id,), ret=True)
+        bottle_entry = execute_statement("SELECT curr_bottle_id from homies where homie_fb_id = ?;", args=(homie_fb_id,), ret=True)
         return bottle_entry[0][0]
     except:
         raise
 
 def insert_bottle(name, size, homie_fb_id):
-    new_bottle_sql = """INSERT INTO bottles (homie_fb_id, bottle_name, bottle_size, num_drinks) VALUES(%s, %s, %s, %s);"""
-    return execute_statement(new_bottle_sql, [homie_fb_id, name, size, 0])
+    try:
+        new_bottle_sql = """INSERT INTO bottles (homie_fb_id, bottle_name, bottle_size, num_drinks) VALUES(?, ?, ?, ?);"""
+        execute_statement(new_bottle_sql, [homie_fb_id, name, size, 0])
+        
+        # Get the selected bottle for the user, if they still have the starting bottle, switch them to what was just created. If not, do nothing.
+        curr_bottle_id = get_bottle(homie_fb_id)
+        bottles = get_bottle_stats(homie_fb_id)
+        bottles_dict = {item[0]: item for item in bottles}
+        curr_bottle_name = bottles_dict[curr_bottle_id][1]
+        if curr_bottle_name == "NULL":
+            switch_bottle(name, homie_fb_id)
+    except:
+        raise
+
     
 def delete_bottle(name, homie_fb_id):
-    bottle_entry = execute_statement("SELECT * FROM bottles WHERE homie_fb_id = %s AND bottle_name = %s;", args=(homie_fb_id, name), ret=True)
+    bottle_entry = execute_statement("SELECT * FROM bottles WHERE homie_fb_id = ? AND bottle_name = ?;", args=(homie_fb_id, name), ret=True)
     bottle_id = bottle_entry[0][0]
-    execute_statement("DELETE FROM drinks WHERE bottle_id = %s;", args=(bottle_id,))
+    execute_statement("DELETE FROM drinks WHERE bottle_id = ?;", args=(bottle_id,))
     
-    homie_entry = execute_statement("SELECT * FROM homies WHERE homie_fb_id = %s;", args=(homie_fb_id,), ret=True)
+    homie_entry = execute_statement("SELECT * FROM homies WHERE homie_fb_id = ?;", args=(homie_fb_id,), ret=True)
     if homie_entry[0][2] == bottle_id:
         switch_bottle("NULL", homie_fb_id)
-    delete_bottle_sql = """DELETE FROM bottles WHERE bottle_name = %s AND homie_fb_id = %s;"""
+    delete_bottle_sql = """DELETE FROM bottles WHERE bottle_name = ? AND homie_fb_id = ?;"""
     return execute_statement(delete_bottle_sql, [name, homie_fb_id])
 
 def rename_bottle(name, new_name, homie_fb_id):
-    bottle_entry = execute_statement("SELECT * FROM bottles WHERE homie_fb_id = %s AND bottle_name = %s;", args=(homie_fb_id, name), ret=True)
+    bottle_entry = execute_statement("SELECT * FROM bottles WHERE homie_fb_id = ? AND bottle_name = ?;", args=(homie_fb_id, name), ret=True)
     bottle_id = bottle_entry[0][0]
-    return execute_statement("UPDATE bottles SET bottle_name = %s WHERE bottle_id = %s;", args=(new_name, bottle_id))
+    return execute_statement("UPDATE bottles SET bottle_name = ? WHERE bottle_id = ?;", args=(new_name, bottle_id))
 
 def get_bottle_stats(homie_fb_id):
     try:
-        results = execute_statement("SELECT bottle_id, bottle_name, bottle_size, num_drinks FROM bottles WHERE homie_fb_id = %s", args=(homie_fb_id,), ret=True)
+        results = execute_statement("SELECT bottle_id, bottle_name, bottle_size, num_drinks FROM bottles WHERE homie_fb_id = ?", args=(homie_fb_id,), ret=True)
     except:
         raise
     return(results)
 
 def get_bottle_ids(homie_fb_id):
-    results = execute_statement("SELECT bottle_id, bottle_size FROM bottles WHERE homie_fb_id = %s", args=(homie_fb_id,), ret=True)
+    results = execute_statement("SELECT bottle_id, bottle_size FROM bottles WHERE homie_fb_id = ?", args=(homie_fb_id,), ret=True)
     return results
 
 def get_homie_events_over_time(homie_fb_id, time_string):
-    results = execute_statement("SELECT bottle_id FROM drinks WHERE homie_fb_id = %s AND drink_time > now() - interval %s;", args=(homie_fb_id, time_string), ret=True)
+    # New datetime_expr for sqlite. Postgres time strings were all positive (and I subtracted them).
+    # Now I need to make them negative for the same result. Just adding the sign here, which is probably dangerous somehow
+    datetime_expr = f"datetime('now', '-{time_string}')"
+    results = execute_statement(f"SELECT bottle_id FROM drinks WHERE homie_fb_id = ? AND drink_time > {datetime_expr}", args=(homie_fb_id,), ret=True)
     return results
 
 def get_homie_list():
@@ -157,8 +178,8 @@ def execute_statement(sql, args=False, ret=False):
     conn = None
     try:
         # read database configuration
-        params = config() # connect to the PostgreSQL database
-        conn = psycopg2.connect(**params)
+        database_file = "drink.db"
+        conn = sqlite3.connect(database_file)
         # create a new cursor
         cur = conn.cursor()
         # execute insert statement
@@ -174,14 +195,15 @@ def execute_statement(sql, args=False, ret=False):
         conn.commit()
         # close communication with the database
         cur.close()
-    except (Exception, psycopg2.DatabaseError) as error:
-        raise
+    except Exception as error:
+        print(f"Experienced Error: {error}. When trying to execute: {sql}. With args: {args}")
     finally:
         if conn is not None:
             conn.close()
     return results
 
-
-#insert_bottle_table()
-#insert_homie_table()
-#insert_drink_table()
+# Create database tables if running directly.
+if __name__ == "__main__":
+    insert_bottle_table()
+    insert_homie_table()
+    insert_drink_table()
