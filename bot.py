@@ -162,7 +162,7 @@ Recommended daily intake is over 2 liters of water! Hydrate or Diedrate!
                 verbose_list = ["-v", "full", "verbose", "--verbose"]
                 if len(ma)>2 and ma[2] in verbose_list:
                     response = group_stats(verbose=True)
-                elif len(ma)>3 and str.isdigit(ma[2]) and ma[3] in ["second","minute","hour","day","week","year","seconds","minutes","hours","days","weeks","years"]:
+                elif len(ma)>3 and str.isdigit(ma[2].replace(".", "", 1)) and ma[3] in ["second","minute","hour","day","month","year","seconds","minutes","hours","days","months","years"]:
                     ts = "{} {}".format(ma[2], ma[3])
                     if len(ma)>4 and ma[4] in verbose_list:
                         response = group_stats(time_string=ts, verbose=True)
